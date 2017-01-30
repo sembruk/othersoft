@@ -20,6 +20,21 @@
 #include <gst/gst.h>
 
 #include <gst/rtsp-server/rtsp-server.h>
+#include <gst/rtsp-server/rtsp-session-pool.h>
+
+#define SESSION_TIMEOUT 3
+
+static gboolean
+check_session (GstRTSPSessionPool * pool, GstRTSPSession * session, GstRTSPServer * server)
+{
+  //return GST_RTSP_FILTER_REMOVE;
+  guint session_timeout = gst_rtsp_session_get_timeout (session);
+  if (session_timeout > SESSION_TIMEOUT)
+  {
+    gst_rtsp_session_set_timeout(session, SESSION_TIMEOUT);
+  }
+  return GST_RTSP_FILTER_KEEP;
+}
 
 /* this timeout is periodically run to clean up the expired sessions from the
  * pool. This needs to be run explicitly currently but might be done
@@ -30,6 +45,11 @@ timeout (GstRTSPServer * server)
   GstRTSPSessionPool *pool;
 
   pool = gst_rtsp_server_get_session_pool (server);
+  guint n_sessions = gst_rtsp_session_pool_get_n_sessions(pool);
+  g_print("%d\n", n_sessions);
+
+  gst_rtsp_session_pool_filter (pool, check_session, server);
+
   gst_rtsp_session_pool_cleanup (pool);
   g_object_unref (pool);
 
@@ -53,7 +73,7 @@ main (int argc, char *argv[])
     return -1;
   }
 
-  printf("Starting RTSP server on :%s%s\n\n", argv[1], argv[2]);
+  g_print("Starting RTSP server on :%s%s\n\n", argv[1], argv[2]);
 
   loop = g_main_loop_new (NULL, FALSE);
 
